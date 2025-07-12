@@ -1,0 +1,55 @@
+require "main.modules.init_functions"
+
+function init(self)
+
+	--math.randomseed(os.time())
+	math.randomseed(1)
+	math.random()
+	math.random()
+	math.random()
+
+	--msg hashes
+	self.init_roll = hash("init_roll")
+	self.init_complete = hash("init_complete")
+	
+	self.init_order = {"blank"}
+	self.init_rolls = {0}
+	self.is_friendly = {false}
+end
+
+function final(self)
+	-- Add finalization code here
+	-- Learn more: https://defold.com/manuals/script/
+	-- Remove this function if not needed
+end
+
+function on_message(self, message_id, message, sender)
+	--[[
+	print(sender)
+	print(message_id)
+	print(message[1])
+	print(message[2].."\n")
+	--]]
+
+	if message_id == self.init_roll then
+		--[[
+		pprint(self.init_order)
+		print("\n")
+		--]]
+
+		pprint(self.is_friendly)
+		print("message ", message[3])
+		self.order_table, self.roll_table, self.is_friendly = 
+		add_to_order(self.init_order, self.init_rolls, self.is_friendly, message[1], roll_init(message[2]), message[3])
+		pprint("after ", self.is_friendly)
+		--[[
+		pprint(self.init_order)
+		pprint(self.init_rolls)
+		print("\n")
+		--]]
+	end
+
+	if message_id == self.init_complete then
+		msg.post("/initiative_display", "display_init", {self.init_order, self.init_rolls, self.is_friendly})
+	end
+end
