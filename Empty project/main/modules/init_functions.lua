@@ -7,12 +7,12 @@ function roll_init(modifier)
 end
 
 function add_to_order(order_table, roll_table, friendly_table, roller, roll, is_friend)
-	print(is_friend)
+	--print(is_friend)
 	local is_friendly = is_friend
 	if is_friendly == nil then
 		is_friendly = false
 	end
-	print("add_to_order ", is_friendly)
+	--print("add_to_order ", is_friendly)
 	if order_table[1] == "blank" then
 		order_table[1] = roller
 		roll_table[1] = roll

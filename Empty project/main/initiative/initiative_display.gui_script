@@ -1,25 +1,28 @@
 function set_up(self)
 	local background_node = gui.get_node("background")
-	gui.set_position(background_node, self.CENTER_SCREEN)
+	local scroll_bar = gui.get_node("scroll bar")
+	local center = self.CENTER_SCREEN
+	gui.set_position(background_node, center)
+	gui.set_position(scroll_bar, vmath.vector3(center.x+100, center.y, center.z))
 end
 
 function add_creature(self, creature_name, roll, is_friendly)
 	local node = gui.new_box_node(self.NAME_POSITION, self.NAME_SIZE)
+	add_roll(self, node, roll)
 	local parent = self.STENCIL
 	gui.set_texture(node, "gui")
 	gui.play_flipbook(node, "button")
 	gui.set_layer(node, "button")
-	gui.set_clipping_mode(node, gui.CLIPPING_MODE_STENCIL)
+	gui.set_clipping_mode(node, gui.CLIPPING_MODE_NONE)
 	-- have to child to stencil to activate clipping
 	gui.set_parent(node, parent, true)
 	-- reduce y scale to half to offset scaling by parent 
 	gui.set_scale(node, vmath.vector3(1, .5, 1))
-	add_roll(self, node, roll)
 	local text_node = gui.new_text_node(self.NEUTRAL_POSITION, creature_name)
 	gui.set_parent(text_node, node)
 	gui.set_font(text_node, self.FONT)
 	gui.set_layer(text_node, "text")
-	print(is_friendly)
+	--print(is_friendly)
 	if is_friendly then
 		gui.set_color(text_node, self.GREEN)
 	else
@@ -30,7 +33,8 @@ end
 
 function add_roll(self, parent, roll)
 	local node = gui.new_box_node(self.ROLL_POSITION, self.ROLL_SIZE)
-	gui.set_parent(node, parent, true)
+	print(gui.get_position(node))
+	gui.set_parent(node, parent)
 	gui.set_texture(node, "gui")
 	gui.play_flipbook(node, "big_ball_button")
 	gui.set_layer(node, "button")
@@ -38,6 +42,7 @@ function add_roll(self, parent, roll)
 	gui.set_parent(text_node, node)
 	gui.set_font(text_node, self.FONT)
 	gui.set_layer(text_node, "text")
+	print(gui.get_position(node))
 end
 
 function slide_up(node)
@@ -48,6 +53,14 @@ function slide_up(node)
 	--print(new_y)
 end
 
+function slide_down(node)
+	--print(gui.get_position(node))
+	local current_position = gui.get_position(node)
+	local new_y = current_position.y-20
+	gui.animate(node, "position.y", new_y, gui.EASING_LINEAR, 1) 
+	--print(new_y)
+end
+
 function slide_to_place_in_order(node, place)
 	--print(gui.get_position(node))
 	local current_position = gui.get_position(node)
@@ -55,6 +68,16 @@ function slide_to_place_in_order(node, place)
 	local new_y = current_position.y-(20*(place-1))
 		gui.animate(node, "position.y", new_y, gui.EASING_OUTCIRC, 1)
 	--print(gui.get_position(node))
+end
+
+function move_slider(self, direction, amount, MAX)
+	local node = gui.get_node("slider")
+	amount = amount*direction
+	local current_position = gui.get_position(node)
+	local new_y = current_position.y + amount 
+	gui.animate(node, "position.y", new_y, gui.EASING_LINEAR, 1, 0, function()
+		self.is_slider_enabled = true
+	end)
 end
 
 function init(self)
@@ -78,19 +101,29 @@ function init(self)
 
 	self.display_init = hash("display_init")
 
+	self.is_initiated = false
+	self.is_slider_selected = false
+	self.is_slider_enabled = true
 	self.init_nodes = {}
 
 	set_up(self)
 
 
 
+	--added scroll bar and slider, figured out clipping with roll nodes
+	--synced up and down buttons with init list
+	--updated to handle any number of combatants
 
 
 
 
 	
 
-	-- scroll bar, find roll nodes, add and remove functionality, neutral color
+	-- scroll bar functionality
+	
+	-- add and remove functionality,
+	-- turn up and complete functionality,
+	-- neutral color
 
 
 
@@ -118,14 +151,81 @@ function on_message(self, message_id, message, sender)
 end
 
 function on_input(self, action_id, action)
-	if not action.pressed then
-		return
-	end
 	local x = action.x
 	local y = action.y
 
-	if gui.pick_node(gui.get_node("icon"), x, y) or action_id == hash("proceed") then
-		print("click")
+	local icon = gui.get_node("icon")
+	local slider = gui.get_node("slider")
+	local up = gui.get_node("up arrow")
+	local down = gui.get_node("down arrow")
+	
+	local SLIDER_MAX = 125
+	local SLIDER_LENGTH = 250
+	local slider_position = gui.get_position(slider)
+
+	if self.is_slider_selected then
+		--scroll bar and slider position is relative to its parent node, background, set at center screen
+		-- must adjust mouse input from screen position to node position
+		local adjusted_y = y-self.CENTER_SCREEN.y
+		local new_position = vmath.vector3(slider_position.x, adjusted_y, slider_position.z)
+		
+		if slider_position.y > SLIDER_MAX-1 and adjusted_y > slider_position.y then
+			new_position.y = SLIDER_MAX
+		elseif slider_position.y < -SLIDER_MAX+1 and adjusted_y < slider_position.y then
+			new_position.y = -SLIDER_MAX
+		end
+		
+		gui.set_position(slider, new_position)
+
+		if action.released then
+			--print("released")
+			self.is_slider_selected = false
+		end
+	end
+
+	if not action.pressed then
+		return
+	end
+
+	local NUM_OF_NAMES_DISPLAYED = 5
+	local slide_amount = SLIDER_LENGTH/(table.maxn(self.init_nodes)-NUM_OF_NAMES_DISPLAYED)
+
+	if (gui.pick_node(icon, x, y) or action_id == hash("proceed")) and not self.is_initiated then
 		msg.post("/initiative", "init_complete")
+		self.is_initiated = true
+	end
+
+	if not self.is_initiated then 
+		return
+	end
+
+	if gui.pick_node(slider, x, y) then
+		self.is_slider_selected = true
+		
+	elseif gui.pick_node(up, x, y) then
+		if slider_position.y > SLIDER_MAX-1 then
+			return
+		end
+		if not self.is_slider_enabled then
+			return
+		end
+		for i in pairs(self.init_nodes) do
+			slide_down(self.init_nodes[i])
+		end
+		move_slider(self, 1, slide_amount, SLIDER_MAX)
+		self.is_slider_enabled = false
+		
+	elseif gui.pick_node(down, x, y) then
+		if slider_position.y < -SLIDER_MAX+1 then
+			return
+		end
+		if not self.is_slider_enabled then
+			return
+		end
+		for i in pairs(self.init_nodes) do
+			slide_up(self.init_nodes[i])
+		end
+		move_slider(self, -1, slide_amount, SLIDER_MAX)
+		self.is_slider_enabled = false
 	end
 end

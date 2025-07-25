@@ -37,12 +37,14 @@ function on_message(self, message_id, message, sender)
 		print("\n")
 		--]]
 
+		--[[
 		pprint(self.is_friendly)
 		print("message ", message[3])
+		--]]
 		self.order_table, self.roll_table, self.is_friendly = 
 		add_to_order(self.init_order, self.init_rolls, self.is_friendly, message[1], roll_init(message[2]), message[3])
-		pprint("after ", self.is_friendly)
 		--[[
+		pprint("after ", self.is_friendly)
 		pprint(self.init_order)
 		pprint(self.init_rolls)
 		print("\n")
